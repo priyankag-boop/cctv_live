@@ -1,48 +1,46 @@
-name: Build Windows EXE (With FFmpeg)
+name: Build Windows EXE
 
 on:
   push:
-    branches: [ main ]  # Runs when you push new code to main branch
-  workflow_dispatch:     # Allows manual trigger from Actions tab
+    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout repository
+      # 1️⃣ Checkout your repository
       - name: Checkout repository
         uses: actions/checkout@v4
 
       # 2️⃣ Set up Python 3.10
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: "3.10"
 
-      # 3️⃣ Install required tools
+      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
           pip install pyinstaller requests
 
-      # 4️⃣ Download FFmpeg (Windows binary)
-      - name: Download FFmpeg static build
+      # 4️⃣ Ensure ffmpeg folder exists (no warning if it already exists)
+      - name: Ensure ffmpeg folder exists
         run: |
-          mkdir ffmpeg
-          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
-          tar -xf ffmpeg.zip -C ffmpeg --strip-components=1
-          move ffmpeg\bin\ffmpeg.exe ffmpeg\ffmpeg.exe
+          if (!(Test-Path "ffmpeg")) { mkdir ffmpeg }
 
-      # 5️⃣ Build single EXE (bundles your script + ffmpeg.exe)
-      - name: Build executable
+      # 5️⃣ Build the EXE with PyInstaller and include the ffmpeg folder
+      - name: Build EXE
         run: |
-          pyinstaller --onefile --add-data "ffmpeg/ffmpeg.exe;ffmpeg" wine.py
-        shell: bash
+          pyinstaller --onefile --noconsole `
+            --add-data "ffmpeg;ffmpeg" `
+            wine.py
 
-      # 6️⃣ Upload the final EXE file for download
+      # 6️⃣ Upload the EXE as a GitHub artifact (so you can download it)
       - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CCTV-Streamer
-          path: dist/wine.exe
+          name: CCTV-Streamer-EXE
+          path: dist/*.exe
