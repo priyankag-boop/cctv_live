@@ -74,10 +74,28 @@ def detect_rtsp_url(ffmpeg_path, user, password, ip):
     return None
 
 
+import socket
+
+def detect_icecast_port(host="portal.thabir.ai"):
+    """Check if Icecast is reachable on port 80 or 8000 and return the working one."""
+    for port in [80, 8000]:
+        try:
+            with socket.create_connection((host, port), timeout=3):
+                print(f"Icecast detected on port {port}")
+                return port
+        except Exception:
+            continue
+    messagebox.showerror("Connection Error", f"Could not connect to Icecast on port 80 or 8000.\nCheck your network or server.")
+    sys.exit(1)
+
+
 def run_ffmpeg(ffmpeg_path, rtsp_url, stream_name):
-    """Start streaming using local ffmpeg."""
-    icecast_url = f"icecast://source:hackme@portal.thabir.ai:8000/{stream_name}"
-    viewer_url = f"http://portal.thabir.ai/{stream_name}"
+    """Start streaming using local ffmpeg with auto-detected Icecast port."""
+    host = "portal.thabir.ai"
+    port = detect_icecast_port(host)
+
+    icecast_url = f"icecast://source:hackme@{host}:{port}/{stream_name}"
+    viewer_url = f"http://{host}:{port}/{stream_name}"
 
     cmd = [
         ffmpeg_path,
@@ -109,7 +127,6 @@ def run_ffmpeg(ffmpeg_path, rtsp_url, stream_name):
         url_var.set(viewer_url)
     except Exception as e:
         messagebox.showerror("Error", f"Failed to start FFmpeg:\n{e}")
-
 
 # ========== GUI ==========
 
