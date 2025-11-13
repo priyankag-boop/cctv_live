@@ -1,38 +1,48 @@
-name: Build Windows EXE
+name: Build Windows EXE (With FFmpeg)
 
 on:
-  workflow_dispatch:
+  push:
+    branches: [ main ]  # Runs when you push new code to main branch
+  workflow_dispatch:     # Allows manual trigger from Actions tab
 
 jobs:
   build:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout your code
+      # 1️⃣ Checkout repository
       - name: Checkout repository
         uses: actions/checkout@v4
-        with:
-          lfs: true  # important so ffmpeg LFS files are downloaded too
 
-      # 2️⃣ Set up Python
-      - name: Set up Python
+      # 2️⃣ Set up Python 3.10
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
-          python-version: "3.10"
+          python-version: '3.10'
 
-      # 3️⃣ Install PyInstaller
+      # 3️⃣ Install required tools
       - name: Install dependencies
-        run: pip install pyinstaller
-
-      # 4️⃣ Build your EXE (bundles ffmpeg folder)
-      - name: Build EXE
         run: |
-          pyinstaller --onefile --noconsole --add-data "ffmpeg;ffmpeg" wine.py
-          ren dist\wine.exe CCTVStreamer.exe
+          python -m pip install --upgrade pip
+          pip install pyinstaller requests
 
-      # 5️⃣ Upload the EXE artifact
-      - name: Upload artifact
+      # 4️⃣ Download FFmpeg (Windows binary)
+      - name: Download FFmpeg static build
+        run: |
+          mkdir ffmpeg
+          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          tar -xf ffmpeg.zip -C ffmpeg --strip-components=1
+          move ffmpeg\bin\ffmpeg.exe ffmpeg\ffmpeg.exe
+
+      # 5️⃣ Build single EXE (bundles your script + ffmpeg.exe)
+      - name: Build executable
+        run: |
+          pyinstaller --onefile --add-data "ffmpeg/ffmpeg.exe;ffmpeg" wine.py
+        shell: bash
+
+      # 6️⃣ Upload the final EXE file for download
+      - name: Upload EXE artifact
         uses: actions/upload-artifact@v4
         with:
-          name: CCTV_Streamer_Windows
-          path: dist/CCTVStreamer.exe
+          name: CCTV-Streamer
+          path: dist/wine.exe
