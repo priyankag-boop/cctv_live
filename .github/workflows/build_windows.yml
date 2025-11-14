@@ -11,37 +11,31 @@ jobs:
 
     steps:
 
-      # 1️⃣ Pull repo
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Install Python
-      - name: Set up Python 3.10
+      - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      # 3️⃣ Install PyInstaller
       - name: Install PyInstaller
         run: pip install pyinstaller
 
-      # 4️⃣ Download FFmpeg 64-bit
       - name: Download FFmpeg (64-bit)
         run: |
           curl -L "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -o ffmpeg.zip
           powershell -command "Expand-Archive ffmpeg.zip -DestinationPath ffmpeg"
           move ffmpeg\ffmpeg-*/* ffmpeg\
 
-      # 5️⃣ Build ONE-FILE EXE
-      - name: Build EXE
-        run: |
-          pyinstaller --onefile --noconsole `
-            --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" `
-            --add-binary "ffmpeg/ffprobe.exe;ffmpeg" `
-            --add-binary "ffmpeg/ffplay.exe;ffmpeg" `
-            cctv.py
+      - name: Build Onefile EXE
+        run: >
+          pyinstaller --onefile --noconsole
+          --add-binary "ffmpeg/ffmpeg.exe;ffmpeg"
+          --add-binary "ffmpeg/ffprobe.exe;ffmpeg"
+          --add-binary "ffmpeg/ffplay.exe;ffmpeg"
+          cctv.py
 
-      # 6️⃣ Upload EXE Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
