@@ -2,7 +2,7 @@ name: Build Windows EXE
 
 on:
   push:
-    branches: [ "main" ]
+    branches: ["main"]
   workflow_dispatch:
 
 jobs:
@@ -10,34 +10,40 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      # 1️⃣ Pull repo
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      # 2️⃣ Install Python
+      - name: Set up Python 3.10
+        uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      - name: Download Windows FFmpeg
-        run: |
-          mkdir ffmpeg
-          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
-          tar -xf ffmpeg.zip
-          move ffmpeg-*-essentials_build/bin/ffmpeg.exe ffmpeg/
-          move ffmpeg-*-essentials_build/bin/ffprobe.exe ffmpeg/
-          move ffmpeg-*-essentials_build/bin/ffplay.exe ffmpeg/
-
+      # 3️⃣ Install PyInstaller
       - name: Install PyInstaller
         run: pip install pyinstaller
 
-      - name: Build One-File EXE
+      # 4️⃣ Download FFmpeg 64-bit
+      - name: Download FFmpeg (64-bit)
         run: |
-          pyinstaller --onefile --noconsole ^
-            --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" ^
-            --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ^
-            --add-binary "ffmpeg/ffplay.exe;ffmpeg" ^
+          curl -L "https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip" -o ffmpeg.zip
+          powershell -command "Expand-Archive ffmpeg.zip -DestinationPath ffmpeg"
+          move ffmpeg\ffmpeg-*/* ffmpeg\
+
+      # 5️⃣ Build ONE-FILE EXE
+      - name: Build EXE
+        run: |
+          pyinstaller --onefile --noconsole `
+            --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" `
+            --add-binary "ffmpeg/ffprobe.exe;ffmpeg" `
+            --add-binary "ffmpeg/ffplay.exe;ffmpeg" `
             cctv.py
 
+      # 6️⃣ Upload EXE Artifact
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: CCTV-Streamer
-          path: dist/*.exe
+          path: dist/cctv.exe
