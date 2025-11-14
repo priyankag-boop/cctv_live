@@ -6,27 +6,38 @@ from tkinter import messagebox
 import webbrowser
 import threading
 
-# ========== Helper Functions ==========
+
+# ================= RESOURCE PATH (IMPORTANT) =================
+
+def resource_path(relative_path):
+    """
+    Get the correct path for files packaged inside PyInstaller EXE.
+    """
+    if hasattr(sys, '_MEIPASS'):   # Running from EXE
+        return os.path.join(sys._MEIPASS, relative_path)
+    return os.path.join(os.path.abspath("."), relative_path)
+
+
+# Paths inside bundled EXE
+FFMPEG_DIR = resource_path("ffmpeg")
+FFMPEG = os.path.join(FFMPEG_DIR, "ffmpeg.exe")
+FFPROBE = os.path.join(FFMPEG_DIR, "ffprobe.exe")
+FFPLAY = os.path.join(FFMPEG_DIR, "ffplay.exe")
+
+# ================= CHECK FFMPEG =================
 
 def check_ffmpeg():
-    """Ensure local ffmpeg.exe exists (no system fallback)."""
-    if getattr(sys, 'frozen', False):
-        base_dir = sys._MEIPASS
-    else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
-
-    ffmpeg_path = os.path.join(base_dir, "ffmpeg", "ffmpeg.exe")
-
-    if not os.path.exists(ffmpeg_path):
-        messagebox.showerror("Error", f"Bundled FFmpeg not found!\nExpected at:\n{ffmpeg_path}")
+    if not os.path.exists(FFMPEG):
+        messagebox.showerror("Error", f"Bundled FFmpeg not found at:\n{FFMPEG}")
         sys.exit(1)
 
-    print(f"Using bundled FFmpeg: {ffmpeg_path}")
-    return ffmpeg_path
+    print(f"Using bundled FFmpeg at: {FFMPEG}")
+    return FFMPEG
 
+
+# ================= RTSP DETECTION =================
 
 def detect_rtsp_url(ffmpeg_path, user, password, ip):
-    """Try top 20 common RTSP paths until one works."""
     common_paths = [
         "/Streaming/Channels/101",
         "/Streaming/Channels/102",
@@ -56,33 +67,32 @@ def detect_rtsp_url(ffmpeg_path, user, password, ip):
 
         cmd = [ffmpeg_path, "-rtsp_transport", "tcp", "-i", rtsp_url, "-t", "3", "-f", "null", "-"]
 
-        # If on Linux, prepend "wine" for .exe
+        # Wine support (Linux only)
         if sys.platform.startswith("linux"):
             cmd.insert(0, "wine")
 
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=6)
-
-            # Combine BOTH stderr and stdout (Wine flips them!)
-            output = result.stderr + result.stdout
+            output = result.stderr + result.stdout  # Wine sometimes flips streams
 
             if b"Stream #0" in output or b"Video" in output:
-                print(f"Valid RTSP URL found: {rtsp_url}")
+                print(f"Valid RTSP URL detected: {rtsp_url}")
                 return rtsp_url
 
         except subprocess.TimeoutExpired:
-            print(f"Timeout on {path}")
+            print("Timeout:", path)
         except Exception as e:
-            print(f"Error testing {path}: {e}")
+            print("Error:", e)
 
-    messagebox.showerror("RTSP Error", "No valid RTSP URL found!\nPlease verify camera IP or credentials.")
+    messagebox.showerror("RTSP Error", "No valid RTSP URL found.\nCheck IP or credentials.")
     return None
 
 
-def run_ffmpeg(ffmpeg_path, rtsp_url, stream_name):
-    """Start streaming using local ffmpeg."""
-    icecast_url = f"icecast://source:hackme@portal.thabir.ai:80/{stream_name}"
-    viewer_url = f"http://portal.thabir.ai/{stream_name}"
+# ================= START STREAM =================
+
+def run_ffmpeg(ffmpeg_path, rtsp_url, mount):
+    icecast_url = f"icecast://source:hackme@portal.thabir.ai:80/{mount}"
+    viewer_url = f"http://portal.thabir.ai/{mount}"
 
     cmd = [
         ffmpeg_path,
@@ -106,34 +116,36 @@ def run_ffmpeg(ffmpeg_path, rtsp_url, stream_name):
     if sys.platform.startswith("linux"):
         cmd.insert(0, "wine")
 
-    print("Starting FFmpeg stream...\n", " ".join(cmd))
+    print("Starting FFmpeg:", " ".join(cmd))
+
     try:
         subprocess.Popen(cmd)
         webbrowser.open(viewer_url)
-        messagebox.showinfo("Stream Started", f"Your stream is live!\n\n{viewer_url}")
+        messagebox.showinfo("Success", f"Your stream is live!\n\n{viewer_url}")
         url_var.set(viewer_url)
+
     except Exception as e:
-        messagebox.showerror("Error", f"Failed to start FFmpeg:\n{e}")
+        messagebox.showerror("FFmpeg Error", str(e))
 
 
-# ========== GUI ==========
+# ================= GUI =================
 
 def start_stream():
     ip = ip_entry.get().strip()
     user = username_entry.get().strip()
-    password = password_entry.get().strip()
-    stream_name = mount_entry.get().strip()
+    passwd = password_entry.get().strip()
+    mount = mount_entry.get().strip()
 
-    if not all([ip, user, password, stream_name]):
+    if not all([ip, user, passwd, mount]):
         messagebox.showwarning("Missing Info", "Please fill all fields.")
         return
 
     ffmpeg_path = check_ffmpeg()
 
     def task():
-        rtsp_url = detect_rtsp_url(ffmpeg_path, user, password, ip)
+        rtsp_url = detect_rtsp_url(ffmpeg_path, user, passwd, ip)
         if rtsp_url:
-            run_ffmpeg(ffmpeg_path, rtsp_url, stream_name)
+            run_ffmpeg(ffmpeg_path, rtsp_url, mount)
 
     threading.Thread(target=task, daemon=True).start()
 
@@ -141,21 +153,20 @@ def start_stream():
 def copy_url():
     url = url_var.get()
     if not url:
-        messagebox.showwarning("No URL", "No stream URL to copy yet.")
+        messagebox.showwarning("No URL", "No stream yet.")
         return
-
     root.clipboard_clear()
     root.clipboard_append(url)
     root.update()
-    messagebox.showinfo("Copied", "Stream URL copied to clipboard!")
+    messagebox.showinfo("Copied", "URL copied!")
 
 
-# ========== GUI Setup ==========
+# ================= GUI SETUP =================
 
 root = tk.Tk()
 root.title("CCTV Streamer")
 root.geometry("420x400")
-root.configure(bg="#0f0f0f")  # black background
+root.configure(bg="#0f0f0f")
 
 font_title = ("Arial", 14, "bold")
 font_label = ("Arial", 10)
@@ -174,7 +185,7 @@ tk.Label(root, text="Password:", fg="white", bg="#0f0f0f", font=font_label).pack
 password_entry = tk.Entry(root, width=40, show="*")
 password_entry.pack()
 
-tk.Label(root, text="Mount Name (e.g., stream1.webm):", fg="white", bg="#0f0f0f", font=font_label).pack(pady=4)
+tk.Label(root, text="Mount Name:", fg="white", bg="#0f0f0f", font=font_label).pack(pady=4)
 mount_entry = tk.Entry(root, width=40)
 mount_entry.pack()
 
