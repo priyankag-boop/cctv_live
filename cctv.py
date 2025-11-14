@@ -62,9 +62,14 @@ def detect_rtsp_url(ffmpeg_path, user, password, ip):
 
         try:
             result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, timeout=6)
-            if b"Stream #0" in result.stderr or b"Video" in result.stderr:
+
+            # Combine BOTH stderr and stdout (Wine flips them!)
+            output = result.stderr + result.stdout
+
+            if b"Stream #0" in output or b"Video" in output:
                 print(f"Valid RTSP URL found: {rtsp_url}")
                 return rtsp_url
+
         except subprocess.TimeoutExpired:
             print(f"Timeout on {path}")
         except Exception as e:
