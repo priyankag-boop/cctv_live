@@ -1,0 +1,6 @@
+;!@Install@!UTF-8!
+Title="CCTV Streamer"
+RunProgram="%TEMP%\\CCTVStreamer\\cctv.exe"
+GUIFlags="0"
+GUIMode="2"
+;!@InstallEnd@!

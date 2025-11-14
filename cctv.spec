@@ -1,3 +1,4 @@
+# cctv.spec
 # -*- mode: python ; coding: utf-8 -*-
 
 block_cipher = None
@@ -6,9 +7,7 @@ a = Analysis(
     ['cctv.py'],
     pathex=[],
     binaries=[],
-    datas=[
-        ('ffmpeg/*', 'ffmpeg'),
-    ],
+    datas=[('ffmpeg/*', 'ffmpeg')],
     hiddenimports=[],
     noarchive=False
 )
@@ -21,5 +20,18 @@ exe = EXE(
     a.binaries,
     a.datas,
     name='cctv',
+    debug=False,
+    strip=False,
+    upx=False,
     console=False,
+)
+
+coll = COLLECT(
+    exe,
+    a.binaries,
+    a.zipfiles,
+    a.datas,
+    strip=False,
+    upx=False,
+    name='cctv'
 )

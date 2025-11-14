@@ -1,4 +1,4 @@
-name: Build Windows EXE
+name: Build Windows Single-EXE (SFX)
 
 on:
   push:
@@ -8,22 +8,70 @@ on:
 jobs:
   build:
     runs-on: windows-latest
-
     steps:
-      - uses: actions/checkout@v4
+      - name: Checkout
+        uses: actions/checkout@v4
 
-      - uses: actions/setup-python@v4
+      - name: Setup Python (x64)
+        uses: actions/setup-python@v4
         with:
-          python-version: "3.10"
+          python-version: '3.10'
+          architecture: 'x64'
 
-      - name: Install PyInstaller
-        run: pip install pyinstaller
+      - name: Install PyInstaller and 7zip
+        shell: pwsh
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyinstaller
+          choco install 7zip -y
 
-      - name: Build
+      - name: Verify ffmpeg files
+        shell: pwsh
+        run: |
+          if (-not (Test-Path "./ffmpeg/ffmpeg.exe")) { Write-Error "ffmpeg.exe missing"; exit 1 }
+          if (-not (Test-Path "./ffmpeg/ffprobe.exe")) { Write-Error "ffprobe.exe missing"; exit 1 }
+          if (-not (Test-Path "./ffmpeg/ffplay.exe")) { Write-Error "ffplay.exe missing"; exit 1 }
+          .\ffmpeg\ffmpeg.exe -version
+
+      - name: Build with PyInstaller (spec)
         run: pyinstaller cctv.spec
 
-      - name: Upload Artifacts
+      - name: Prepare SFX staging and payload
+        shell: pwsh
+        run: |
+          rm -Force -Recurse sfx_staging -ErrorAction SilentlyContinue
+          New-Item -ItemType Directory -Path sfx_staging | Out-Null
+
+          # Copy resulting exe (support both onefile and one-folder outputs)
+          if (Test-Path "dist\\cctv.exe") {
+            Copy-Item "dist\\cctv.exe" "sfx_staging\\cctv.exe"
+          } elseif (Test-Path "dist\\cctv\\cctv.exe") {
+            Copy-Item "dist\\cctv\\cctv.exe" "sfx_staging\\cctv.exe"
+          } else {
+            Write-Error "Built cctv.exe not found in dist"
+            exit 1
+          }
+
+          # Copy ffmpeg folder (exact windows binaries you committed)
+          Copy-Item -Path ".\\ffmpeg" -Destination "sfx_staging\\ffmpeg" -Recurse
+
+          # Create 7z archive
+          "C:\Program Files\7-Zip\7z.exe" a -t7z sfx_payload.7z ".\\sfx_staging\\*"
+
+          # assemble SFX — use 7z.sfx shipped with 7-Zip
+          $sfx = "C:\Program Files\7-Zip\7z.sfx"
+          if (-not (Test-Path $sfx)) { Write-Error "7z.sfx not found"; exit 1 }
+
+          # Combine: 7z.sfx + config + payload -> final exe
+          $out = "CCTV Streamer.exe"
+          Get-Content $sfx -Encoding Byte -ReadCount 0 | Set-Content -NoNewline -Encoding Byte temp_sfx.bin
+          Get-Content sfx_config.txt -Encoding Byte -ReadCount 0 | Add-Content -Encoding Byte temp_sfx.bin
+          Get-Content sfx_payload.7z -Encoding Byte -ReadCount 0 | Add-Content -Encoding Byte temp_sfx.bin
+          Move-Item -Force temp_sfx.bin $out
+          Write-Host "Created: $out (size: $((Get-Item $out).Length) bytes)"
+
+      - name: Upload final single-file SFX
         uses: actions/upload-artifact@v4
         with:
-          name: CCTV-Streamer
-          path: dist/cctv.exe
+          name: CCTV-Streamer-SFX
+          path: CCTV Streamer.exe
