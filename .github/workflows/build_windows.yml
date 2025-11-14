@@ -28,4 +28,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: CCTV-Streamer
-          path: dist/cctv.exe
+          path: dist/**/*.exe
