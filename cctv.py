@@ -9,13 +9,13 @@ import threading
 # ========== Helper Functions ==========
 
 def check_ffmpeg():
-    """Ensure local ffmpeg.exe exists (no system fallback)."""
-    if getattr(sys, 'frozen', False):
-        base_dir = sys._MEIPASS
+    """Find ffmpeg.exe inside PyInstaller bundle."""
+    if hasattr(sys, '_MEIPASS'):
+        base_dir = sys._MEIPASS     # when running as .exe
     else:
-        base_dir = os.path.dirname(os.path.abspath(__file__))
+        base_dir = os.path.dirname(os.path.abspath(__file__))  # when running as .py
 
-    ffmpeg_path = os.path.join(base_dir, "ffmpeg", "ffmpeg.exe")
+    ffmpeg_path = os.path.join(base_dir, "ffmpeg_bin", "ffmpeg.exe")
 
     if not os.path.exists(ffmpeg_path):
         messagebox.showerror("Error", f"Bundled FFmpeg not found!\nExpected at:\n{ffmpeg_path}")
@@ -23,7 +23,6 @@ def check_ffmpeg():
 
     print(f"Using bundled FFmpeg: {ffmpeg_path}")
     return ffmpeg_path
-
 
 def detect_rtsp_url(ffmpeg_path, user, password, ip):
     """Try top 20 common RTSP paths until one works."""

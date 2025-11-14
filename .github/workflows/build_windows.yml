@@ -2,7 +2,8 @@ name: Build Windows EXE
 
 on:
   push:
-    branches: [ main ]
+    branches:
+      - main
   workflow_dispatch:
 
 jobs:
@@ -24,8 +25,8 @@ jobs:
           mkdir ffmpeg_unzip
           tar -xf ffmpeg.zip -C ffmpeg_unzip --strip-components=1
           mkdir ffmpeg_bin
-          copy ffmpeg_unzip\bin\ffmpeg.exe ffmpeg_bin\
-          copy ffmpeg_unzip\bin\ffprobe.exe ffmpeg_bin\
+          cp ffmpeg_unzip/bin/ffmpeg.exe ffmpeg_bin/
+          cp ffmpeg_unzip/bin/ffprobe.exe ffmpeg_bin/
 
       - name: Install PyInstaller
         run: pip install pyinstaller
@@ -38,4 +39,4 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: cctv_stream
-          path: dist\cctv.exe
+          path: dist/cctv.exe
