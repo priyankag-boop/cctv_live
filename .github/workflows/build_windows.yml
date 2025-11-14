@@ -1,9 +1,8 @@
-name: Build Windows EXE
+name: Build EXE
 
 on:
   push:
-    branches:
-      - main
+    branches: [ main ]
   workflow_dispatch:
 
 jobs:
@@ -19,24 +18,18 @@ jobs:
         with:
           python-version: "3.10"
 
-      - name: Download FFmpeg (Windows)
-        run: |
-          curl -L https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip -o ffmpeg.zip
-          mkdir ffmpeg_unzip
-          tar -xf ffmpeg.zip -C ffmpeg_unzip --strip-components=1
-          mkdir ffmpeg_bin
-          cp ffmpeg_unzip/bin/ffmpeg.exe ffmpeg_bin/
-          cp ffmpeg_unzip/bin/ffprobe.exe ffmpeg_bin/
-
       - name: Install PyInstaller
         run: pip install pyinstaller
 
       - name: Build EXE
         run: |
-          pyinstaller --onefile --add-data "ffmpeg_bin;ffmpeg_bin" cctv.py
+          pyinstaller cctv.py ^
+            --onefile ^
+            --noconsole ^
+            --add-data "ffmpeg;ffmpeg"
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
         with:
-          name: cctv_stream
+          name: cctv_streamer_exe
           path: dist/cctv.exe
