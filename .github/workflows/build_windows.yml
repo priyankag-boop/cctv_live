@@ -10,46 +10,34 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      - name: Checkout source code
-        uses: actions/checkout@v4
+      - uses: actions/checkout@v4
 
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - uses: actions/setup-python@v4
         with:
           python-version: "3.10"
 
-      # ------------------------------------------------------------
-      # 1️⃣ Download Windows ffmpeg (latest) and extract it
-      # ------------------------------------------------------------
-      - name: Download ffmpeg
-        run: |
-          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z
-          7z x ffmpeg.zip -offmpeg_temp
-
-      - name: Prepare ffmpeg folder for PyInstaller
+      - name: Download Windows FFmpeg
         run: |
           mkdir ffmpeg
-          copy ffmpeg_temp\**\bin\ffmpeg.exe ffmpeg\
-          copy ffmpeg_temp\**\bin\ffprobe.exe ffmpeg\
-          copy ffmpeg_temp\**\bin\ffplay.exe ffmpeg\
+          curl -L -o ffmpeg.zip https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-essentials.zip
+          tar -xf ffmpeg.zip
+          move ffmpeg-*-essentials_build/bin/ffmpeg.exe ffmpeg/
+          move ffmpeg-*-essentials_build/bin/ffprobe.exe ffmpeg/
+          move ffmpeg-*-essentials_build/bin/ffplay.exe ffmpeg/
 
-      # ------------------------------------------------------------
-      # 2️⃣ Install dependencies
-      # ------------------------------------------------------------
-      - name: Install Python dependencies
+      - name: Install PyInstaller
         run: pip install pyinstaller
 
-      # ------------------------------------------------------------
-      # 3️⃣ Build single EXE using cctv.spec
-      # ------------------------------------------------------------
-      - name: Build EXE
-        run: pyinstaller cctv.spec
+      - name: Build One-File EXE
+        run: |
+          pyinstaller --onefile --noconsole ^
+            --add-binary "ffmpeg/ffmpeg.exe;ffmpeg" ^
+            --add-binary "ffmpeg/ffprobe.exe;ffmpeg" ^
+            --add-binary "ffmpeg/ffplay.exe;ffmpeg" ^
+            cctv.py
 
-      # ------------------------------------------------------------
-      # 4️⃣ Upload the final EXE
-      # ------------------------------------------------------------
-      - name: Upload built EXE
+      - name: Upload Artifact
         uses: actions/upload-artifact@v4
         with:
           name: CCTV-Streamer
-          path: dist/
+          path: dist/*.exe

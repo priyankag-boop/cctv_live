@@ -1,0 +1,14 @@
+
+# build outputs
+dist/
+build/
+*.exe
+*.spec
+
+# temporary
+__pycache__/
+*.pyc
+
+# local only
+ffmpeg/
+
