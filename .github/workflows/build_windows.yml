@@ -10,37 +10,31 @@ jobs:
     runs-on: windows-latest
 
     steps:
-      # 1️⃣ Checkout your repository
+
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      # 2️⃣ Set up Python 3.10
-      - name: Set up Python
+      - name: Set up Python 3.10
         uses: actions/setup-python@v5
         with:
           python-version: "3.10"
 
-      # 3️⃣ Install dependencies
       - name: Install dependencies
         run: |
           python -m pip install --upgrade pip
-          pip install pyinstaller requests
+          pip install pyinstaller
 
-      # 4️⃣ Ensure ffmpeg folder exists (no warning if it already exists)
-      - name: Ensure ffmpeg folder exists
+      - name: Build EXE with PyInstaller
         run: |
-          if (!(Test-Path "ffmpeg")) { mkdir ffmpeg }
-
-      # 5️⃣ Build the EXE with PyInstaller and include the ffmpeg folder
-      - name: Build EXE
-        run: |
-          pyinstaller --onefile --noconsole `
-            --add-data "ffmpeg;ffmpeg" `
+          pyinstaller ^
+            --noconfirm ^
+            --onefile ^
+            --windowed ^
+            --add-data "ffmpeg;ffmpeg" ^
             wine.py
 
-      # 6️⃣ Upload the EXE as a GitHub artifact (so you can download it)
-      - name: Upload EXE artifact
+      - name: Upload EXE as artifact
         uses: actions/upload-artifact@v4
         with:
           name: CCTV-Streamer-EXE
-          path: dist/*.exe
+          path: dist/wine.exe
