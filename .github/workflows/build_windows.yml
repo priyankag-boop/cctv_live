@@ -22,11 +22,7 @@ jobs:
         run: pip install pyinstaller
 
       - name: Build EXE
-        run: |
-          pyinstaller cctv.py ^
-            --onefile ^
-            --noconsole ^
-            --add-data "ffmpeg;ffmpeg"
+        run: pyinstaller cctv.py --onefile --noconsole --add-data "ffmpeg;ffmpeg"
 
       - name: Upload EXE
         uses: actions/upload-artifact@v4
